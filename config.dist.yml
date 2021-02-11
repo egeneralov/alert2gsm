@@ -1,0 +1,30 @@
+# public endpoint for this instance
+external_endpoint: "http://1.1.1.1:8080"
+# twilio hooks only here for now
+http:
+  enabled: true
+  listen: "0.0.0.0:8080"
+# if ssl_certificate or ssl_certificate_key are not presented - generate fake crt on-the-fly
+https:
+  enabled: false
+  listen: ":8443"
+  ssl_certificate: ''
+  ssl_certificate_key: ''
+webhooks:
+  call:
+    enabled: true
+  grafana: # grafana POST webhook reciver
+    enabled: true
+    # grafana must send basic auth with this credentials
+    username: grafana
+    password: grafana
+    # pre_message: ""
+  twilio:
+    enabled: true # only twilio webhook handler
+    # https://docs.aws.amazon.com/polly/latest/dg/voicelist.html
+    # ru: Polly.Tatyana
+    # en: alice
+    voice: "Amy"
+    from: "+300000000000"
+    notify:
+      - "+70000000000"
