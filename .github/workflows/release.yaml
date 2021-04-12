@@ -1,0 +1,87 @@
+on:
+  push:
+    tags:
+    - 'v*'
+
+name: Release
+
+jobs:
+  build:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      
+      - name: Set up Go 1.15.6
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.15.6
+        id: go
+      
+      - name: Checkout code
+        uses: actions/checkout@master
+      
+      - name: build linux
+        run: GOOS=linux go build -a -v -installsuffix cgo -ldflags="-w -s" -o alert2gsm-linux .
+      
+      - name: build darwin
+        run: GOOS=darwin go build -a -v -installsuffix cgo -ldflags="-w -s" -o alert2gsm-darwin .
+      
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          version: latest
+      
+      - name: docker hub login
+        env:
+          HUB_PASSWORD: ${{ secrets.HUB_PASSWORD }}
+        run: docker login -u egeneralov -p ${HUB_PASSWORD}
+      
+      - name: docker build+push
+        run: docker buildx build -t ${GITHUB_REPOSITORY}:$(echo $GITHUB_REF | awk -F \/ '{print $3}') --platform linux/amd64,linux/arm64,linux/arm/v7 --output "type=image,push=true" .
+      
+      - name: docker hub logout
+        run: docker logout
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      
+      - name: save linux artifact in Actions
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: linux
+          path: alert2gsm-linux
+      
+      - name: save darwin artifact in Actions
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: darwin
+          path: alert2gsm-darwin
+
+      - name: upload linux release asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./alert2gsm-linux
+          asset_name: alert2gsm-linux
+          asset_content_type: application/binary
+      
+      - name: upload darwin release asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./alert2gsm-darwin
+          asset_name: alert2gsm-darwin
+          asset_content_type: application/binary
